@@ -41,11 +41,12 @@ jobs:
         with:
           terraform_version: "1.7.0"   
 
-      - name: Setup Scripts
-        run: |
-          mkdir -p ./tmp_scripts
-          cp scripts/*.sh ./tmp_scripts/
-          chmod +x ./tmp_scripts/*.sh
+      - name: Checkout Pipeline Scripts
+        uses: actions/checkout@v4
+        with:
+          repository: lugui-co/infra-github-pipelines
+          ref: production
+          path: infra-github-pipelines
                
       - name: plan
         run: |
@@ -57,8 +58,8 @@ jobs:
           sudo apt-get update && sudo apt-get install -y awscli p7zip build-essential
 
           # Carregar e executar scripts
-          source ./tmp_scripts/aws_setup.sh
-          source ./tmp_scripts/terraform_operations.sh
+          source infra-github-pipelines/scripts/aws_setup.sh
+          source infra-github-pipelines/scripts/terraform_operations.sh
 
           # Configurar AWS
           setup_aws_credentials "${ACCOUNT_FAMILY}" "${CI_COMMIT_BRANCH}"
@@ -115,11 +116,12 @@ jobs:
         with:
           terraform_version: "1.7.0"   
 
-      - name: Setup Scripts
-        run: |
-          mkdir -p ./tmp_scripts
-          cp scripts/*.sh ./tmp_scripts/
-          chmod +x ./tmp_scripts/*.sh
+      - name: Checkout Pipeline Scripts
+        uses: actions/checkout@v4
+        with:
+          repository: lugui-co/infra-github-pipelines
+          ref: production
+          path: infra-github-pipelines
 
       - name: download_artifacts
         uses: actions/download-artifact@v4
@@ -136,8 +138,8 @@ jobs:
           sudo apt-get update && sudo apt-get install -y awscli p7zip build-essential
 
           # Carregar e executar scripts
-          source ./tmp_scripts/aws_setup.sh
-          source ./tmp_scripts/terraform_operations.sh
+          source infra-github-pipelines/scripts/aws_setup.sh
+          source infra-github-pipelines/scripts/terraform_operations.sh
 
           # Configurar AWS
           setup_aws_credentials "${ACCOUNT_FAMILY}" "${CI_COMMIT_BRANCH}"
