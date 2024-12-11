@@ -44,4 +44,46 @@ update_lambda_function() {
     aws lambda update-function-code \
         --function-name ${service_name} \
         --image-uri "${image_uri}"
+}
+
+build_python_package() {
+    local dir=$1
+    
+    cd $dir
+    
+    echo "Building Python package..."
+    touch ./requirements.txt
+    pip install --no-cache --target ./package -r ./requirements.txt
+
+    echo "Creating deployment package..."
+    touch .lambdaignore
+    7z a -mx=9 -mfb=64 \
+        -xr'@.lambdaignore' \
+        -xr'!.lambdaignore' \
+        -xr'!.*' \
+        -xr'!*.md' \
+        -xr'!*git*' \
+        -xr'!*.txt' \
+        -xr'!*.h' \
+        -xr'!*.hpp' \
+        -xr'!*.c' \
+        -xr'!*.cpp' \
+        -xr'!*.zip' \
+        -xr'!*.rar' \
+        -xr'!*.sh' \
+        -xr'!*__pycache__*' \
+        -xr'!*.pyc' \
+        -xr'!*.pyo' \
+        -xr'!function_policy.json' \
+        -xr'!function_policy_arguments.json' \
+        -r main.zip .
+}
+
+update_python_lambda() {
+    local service_name=$1
+    
+    echo "Updating Python Lambda function..."
+    aws lambda update-function-code \
+        --function-name ${service_name} \
+        --zip-file fileb://main.zip
 } 

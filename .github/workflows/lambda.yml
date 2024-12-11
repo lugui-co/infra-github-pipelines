@@ -1,4 +1,4 @@
-name: deploy lambda python
+name: Deploy Lambda Function
 
 on:
   workflow_call:
@@ -13,11 +13,8 @@ jobs:
       name: ${{ inputs.environment }}
     runs-on: ubuntu-22.04
 
-    container:
-      image: docker://python:${{ vars.DOCKER_IMAGE_TAG || '3.10.14-bullseye' }}
-
     steps:
-      - name: checkout
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: 'recursive'
@@ -31,7 +28,7 @@ jobs:
           path: infra-github-pipelines
           token: ${{ secrets.FETCH_TOKEN }}
 
-      - name: deploy
+      - name: Deploy
         env:
           ACCOUNT_FAMILY: ${{ vars.ACCOUNT_FAMILY }}
           AWS_DEFAULT_REGION: ${{ vars.AWS_DEFAULT_REGION }}
@@ -39,22 +36,15 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           SERVICE_NAME: ${{ vars.SERVICE_NAME }}
           GO_TO_DIR: ${{ vars.GO_TO_DIR }}
+          CI_JOB_TOKEN: ${{ secrets.FETCH_TOKEN }}
           SERVICE_NAME_ENV_SUFIX: ${{ vars.SERVICE_NAME_ENV_SUFIX }}
         run: |
-          echo "Starting Python Lambda deployment..."
           export CI_COMMIT_BRANCH=${GITHUB_REF_NAME}
           export CI_PROJECT_NAME=$(echo "${GITHUB_REPOSITORY}" | awk -F / '{print $2}')
 
-          # Install required packages
-          if [ -x "$(command -v apt-get)" ]; then
-            apt-get update && apt-get install -y p7zip-full awscli
-          fi
-          if [ -x "$(command -v apk)" ]; then
-            apk add p7zip aws-cli
-          fi
-
           # Source helper scripts
           source infra-github-pipelines/scripts/aws_setup.sh
+          source infra-github-pipelines/scripts/docker_operations.sh
           source infra-github-pipelines/scripts/lambda_operations.sh
 
           # Setup AWS credentials
@@ -63,10 +53,5 @@ jobs:
           # Setup Lambda environment
           setup_lambda_environment "${SERVICE_NAME}" "${CI_PROJECT_NAME}" "${CI_COMMIT_BRANCH}" "${SERVICE_NAME_ENV_SUFIX}"
 
-          # Build Python package
-          build_python_package "${GO_TO_DIR}"
-
-          # Update Lambda function
-          update_python_lambda "${SERVICE_NAME}"
-          
-          echo "Python Lambda deployment completed successfully!"
+          # Additional deployment steps would go here, depending on the type of Lambda
+          # (Docker or Python)
