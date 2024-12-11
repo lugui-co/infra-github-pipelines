@@ -1,0 +1,75 @@
+name: deploy lambda lambda_docker
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+
+jobs:
+  deploy:
+    environment:
+      name: ${{ inputs.environment }}
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          token: ${{ secrets.FETCH_TOKEN }}
+
+      - name: Install AWS CLI
+        run: |
+          if [ -x "$(command -v apt-get)" ]; then
+            apt-get update && apt-get install -y awscli
+          fi
+          if [ -x "$(command -v apk)" ]; then
+            apk add aws-cli
+          fi
+
+      - name: Deploy
+        env:
+          ACCOUNT_FAMILY: ${{ vars.ACCOUNT_FAMILY }}
+          AWS_DEFAULT_REGION: ${{ vars.AWS_DEFAULT_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          SERVICE_NAME: ${{ vars.SERVICE_NAME }}
+          GO_TO_DIR: ${{ vars.GO_TO_DIR }}
+          CI_JOB_TOKEN: ${{ secrets.FETCH_TOKEN }}
+          SERVICE_NAME_ENV_SUFIX: ${{ vars.SERVICE_NAME_ENV_SUFIX }}
+        run: |
+          export CI_COMMIT_BRANCH=${GITHUB_REF_NAME}
+          export CI_PROJECT_NAME=$(echo "${GITHUB_REPOSITORY}" | awk -F / '{print $2}')
+
+          # Source helper scripts
+          source scripts/aws_setup.sh
+          source scripts/docker_operations.sh
+
+          # Setup AWS credentials
+          setup_aws_credentials "${ACCOUNT_FAMILY}" "${CI_COMMIT_BRANCH}"
+
+          # Set default values
+          : ${GO_TO_DIR:="."}
+          : ${SERVICE_NAME:=${CI_PROJECT_NAME}}
+          
+          if [ "${SERVICE_NAME_ENV_SUFIX}" == "true" ]; then
+              SERVICE_NAME="${SERVICE_NAME}-${CI_COMMIT_BRANCH}"
+          fi
+
+          # Get ECR registry address
+          ECR_REGISTRY_ADDRESS=$(aws ecr describe-repositories | \
+              grep repositoryUri | \
+              awk '{print $2}' | \
+              sed -e 's/\"\(.*\)\"\,/\1/' | \
+              grep ${SERVICE_NAME})
+
+          # Build and push Docker image
+          build_and_push_docker_image "${ECR_REGISTRY_ADDRESS}" "${CI_JOB_TOKEN}" "${GO_TO_DIR}"
+
+          # Update Lambda function
+          sleep 5
+          aws lambda update-function-code \
+              --function-name ${SERVICE_NAME} \
+              --image-uri "${ECR_REGISTRY_ADDRESS}:latest"
