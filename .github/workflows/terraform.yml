@@ -16,92 +16,28 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
     steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: 'recursive'
-
-      - name: setup_go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.20.4'
-
-      - name: setup_python
-        uses: actions/setup-python@v5
-        with:
-          python-version: 'pypy3.10'
-
-      - name: setup_node
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20.2.0'
-
-      - name: setup_terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.7.0"
+      - uses: ./.github/workflows/terraform-config.yml
 
       - name: plan
-
         run: |
-            echo "Iniciando job de plan..."
-            export CI_COMMIT_BRANCH=${GITHUB_REF_NAME}
-            echo "Branch: ${CI_COMMIT_BRANCH}"
+          echo "Iniciando job de plan..."
+          export CI_COMMIT_BRANCH=${GITHUB_REF_NAME}
+          export CI_PROJECT_NAME=$(echo "${GITHUB_REPOSITORY}" | awk -F / '{print $2}')
 
-            export CI_PROJECT_NAME=$(echo "${GITHUB_REPOSITORY}" | awk -F / '{print $2}')
-            echo "Nome do projeto: ${CI_PROJECT_NAME}"
+          # Instalar dependências
+          sudo apt-get update && sudo apt-get install -y awscli p7zip build-essential
 
-            echo "Instalando dependências..."
-            sudo apt-get update && sudo apt-get install -y awscli p7zip build-essential
+          # Carregar scripts
+          source scripts/aws_setup.sh
+          source scripts/terraform_operations.sh
 
-            echo "Configurando diretório AWS..."
-            mkdir ~/.aws
-            touch ~/.aws/credentials
+          # Configurar AWS
+          setup_aws_credentials "${ACCOUNT_FAMILY}" "${CI_COMMIT_BRANCH}"
 
-            echo "Buscando credenciais AWS do SSM..."
-            aws ssm get-parameters --names "/cicd/${ACCOUNT_FAMILY}/credentials" --with-decryption --query "Parameters[0].Value" --output text > ~/.aws/credentials
-            
-            echo "Conteúdo do arquivo de credenciais:"
-            cat ~/.aws/credentials
-
-            
-            if [ "$(cat ~/.aws/credentials)" == "null" ] && [ "$(cat ~/.aws/credentials)" == "None" ]; then
-              echo "ERRO: Credenciais AWS não encontradas."
-              echo "ERRO: Verifique se o ambiente está configurado corretamente."
-              echo "ERRO: Verifique a variável de ambiente ACCOUNT_FAMILY"
-              exit 1
-            fi
-
-            echo "Configurando perfil AWS..."
-            export AWS_PROFILE=${CI_COMMIT_BRANCH}
-            echo "Perfil AWS configurado: ${AWS_PROFILE}"
-
-            unset AWS_ACCESS_KEY_ID
-            unset AWS_SECRET_ACCESS_KEY
-
-            echo "Preparando arquivo de variáveis Terraform..."
-            mkdir -p ./environments
-            touch ./environments/${CI_COMMIT_BRANCH}.tfvars
-            echo >> ./environments/${CI_COMMIT_BRANCH}.tfvars
-
-            echo "Buscando parâmetros específicos da branch..."
-            aws ssm get-parameters --names "/cicd/account/tfvars" --with-decryption --query "Parameters[0].Value" --output text >> ./environments/${CI_COMMIT_BRANCH}.tfvars
-            echo "Parâmetros encontrados e adicionados ao arquivo de variáveis..."
-
-            echo "Verificando configuração de região..."
-            export AWS_DEFAULT_REGION=$(aws ssm get-parameters --names "/cicd/account/region" --with-decryption --query "Parameters[0].Value" --output text)
-            echo "Região AWS configurada: ${AWS_DEFAULT_REGION}"
-
-            echo "Inicializando Terraform..."
-            terraform init -force-copy -input=false -backend-config bucket="lugui-terraform-states-${CI_COMMIT_BRANCH}" -backend-config dynamodb_table="lugui-terraform-states-${CI_COMMIT_BRANCH}" -backend-config shared_credentials_file=~/.aws/credentials -backend-config profile=${CI_COMMIT_BRANCH} -backend-config region=${AWS_DEFAULT_REGION}
-
-            echo "Selecionando/criando workspace Terraform..."
-            terraform workspace select ${CI_COMMIT_BRANCH} || terraform workspace new ${CI_COMMIT_BRANCH}
-
-            echo "Executando terraform plan..."
-            terraform plan -out=tfplan.json -input=false -var-file ./environments/${CI_COMMIT_BRANCH}.tfvars
-            echo "Plan concluído com sucesso!"
-
+          # Setup e execução do Terraform
+          setup_terraform_environment "${CI_COMMIT_BRANCH}" "${ACCOUNT_FAMILY}"
+          initialize_terraform "${CI_COMMIT_BRANCH}" "${AWS_DEFAULT_REGION}"
+          run_terraform_plan "${CI_COMMIT_BRANCH}"
 
       - name: upload_artifact
         uses: actions/upload-artifact@v4
@@ -110,14 +46,11 @@ jobs:
           retention-days: 1
           compression-level: 9
           name: plano
-          path: |
-            ./tfplan.json
+          path: ./tfplan.json
 
   apply:
     runs-on: ubuntu-22.04
-
     needs: plan
-
     environment:
       name: ${{ inputs.environment }}
 
@@ -128,30 +61,7 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
     steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: 'recursive'
-
-      - name: setup_go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.20.4'
-
-      - name: setup_python
-        uses: actions/setup-python@v5
-        with:
-          python-version: 'pypy3.10'
-
-      - name: setup_node
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20.2.0'
-
-      - name: setup_terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.7.0"
+      - uses: ./.github/workflows/terraform-config.yml
 
       - name: download_artifacts
         uses: actions/download-artifact@v4
@@ -159,62 +69,22 @@ jobs:
           name: plano
 
       - name: apply
-
         run: |
-            echo "Iniciando job de apply..."
-            export CI_COMMIT_BRANCH=${GITHUB_REF_NAME}
-            echo "Branch: ${CI_COMMIT_BRANCH}"
+          echo "Iniciando job de apply..."
+          export CI_COMMIT_BRANCH=${GITHUB_REF_NAME}
+          export CI_PROJECT_NAME=$(echo "${GITHUB_REPOSITORY}" | awk -F / '{print $2}')
 
-            export CI_PROJECT_NAME=$(echo "${GITHUB_REPOSITORY}" | awk -F / '{print $2}')
-            echo "Nome do projeto: ${CI_PROJECT_NAME}"
+          # Instalar dependências
+          sudo apt-get update && sudo apt-get install -y awscli p7zip build-essential
 
-            echo "Instalando dependências..."
-            sudo apt-get update && sudo apt-get install -y awscli p7zip build-essential
+          # Carregar scripts
+          source scripts/aws_setup.sh
+          source scripts/terraform_operations.sh
 
-            echo "Configurando diretório AWS..."
-            mkdir ~/.aws
-            touch ~/.aws/credentials
+          # Configurar AWS
+          setup_aws_credentials "${ACCOUNT_FAMILY}" "${CI_COMMIT_BRANCH}"
 
-            echo "Buscando credenciais AWS do SSM..."
-            aws ssm get-parameters --names "/cicd/${ACCOUNT_FAMILY}/credentials" --with-decryption --query "Parameters[0].Value" --output text > ~/.aws/credentials
-
-            if [ "$(cat ~/.aws/credentials)" == "null" ] && [ "$(cat ~/.aws/credentials)" == "None" ]; then
-              echo "ERRO: Credenciais AWS não encontradas."
-              echo "ERRO: Verifique se o ambiente está configurado corretamente."
-              echo "ERRO: Verifique a variável de ambiente ACCOUNT_FAMILY"
-              exit 1
-            fi
-
-            echo "Configurando perfil AWS..."
-            export AWS_PROFILE=${CI_COMMIT_BRANCH}
-            echo "Perfil AWS configurado: ${AWS_PROFILE}"
-
-            unset AWS_ACCESS_KEY_ID
-            unset AWS_SECRET_ACCESS_KEY
-
-            echo "Preparando arquivo de variáveis Terraform..."
-            mkdir -p ./environments
-            touch ./environments/${CI_COMMIT_BRANCH}.tfvars
-            echo >> ./environments/${CI_COMMIT_BRANCH}.tfvars
-
-            echo "Buscando parâmetros específicos da branch..."
-            aws ssm get-parameters --names "/cicd/account/tfvars" --with-decryption --query "Parameters[0].Value" --output text >> ./environments/${CI_COMMIT_BRANCH}.tfvars
-            echo "Parâmetros encontrados e adicionados ao arquivo de variáveis..."
-
-            echo "Verificando configuração de região..."
-            export AWS_DEFAULT_REGION=$(aws ssm get-parameters --names "/cicd/account/region" --with-decryption --query "Parameters[0].Value" --output text)
-            echo "Região AWS configurada: ${AWS_DEFAULT_REGION}"
-
-            echo "Ajustando permissões do arquivo de plano..."
-            sudo chown -R $(whoami):$(whoami) ./tfplan.json
-            sudo chmod -R 777 ./tfplan.json
-
-            echo "Inicializando Terraform..."
-            terraform init -force-copy -input=false -backend-config bucket="lugui-terraform-states-${CI_COMMIT_BRANCH}" -backend-config dynamodb_table="lugui-terraform-states-${CI_COMMIT_BRANCH}" -backend-config shared_credentials_file=~/.aws/credentials -backend-config profile=${CI_COMMIT_BRANCH} -backend-config region=${AWS_DEFAULT_REGION}
-
-            echo "Selecionando workspace Terraform..."
-            terraform workspace select ${CI_COMMIT_BRANCH}
-
-            echo "Executando terraform apply..."
-            terraform apply -auto-approve -input=false tfplan.json
-            echo "Apply concluído com sucesso!"
+          # Setup e execução do Terraform
+          setup_terraform_environment "${CI_COMMIT_BRANCH}" "${ACCOUNT_FAMILY}"
+          initialize_terraform "${CI_COMMIT_BRANCH}" "${AWS_DEFAULT_REGION}"
+          run_terraform_apply "./tfplan.json"
