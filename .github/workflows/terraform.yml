@@ -53,6 +53,8 @@ jobs:
             mkdir ~/.aws
             touch ~/.aws/credentials
 
+            echo "oi"
+
             aws ssm get-parameters --names "/cicd/${ACCOUNT_FAMILY}/credentials" --with-decryption --query "Parameters[0].Value" --output text > ~/.aws/credentials
 
             if [ "$(cat ~/.aws/credentials)" == "null" ] && [ "$(cat ~/.aws/credentials)" == "None" ]; then
