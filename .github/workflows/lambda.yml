@@ -42,11 +42,11 @@ jobs:
 
           echo "Instalando AWS CLI..."
           if [ -x "$(command -v apt-get)" ]; then
-            apt-get update && apt-get install -y awscli
+            sudo apt-get update && sudo apt-get install -y awscli
           fi
 
           if [ -x "$(command -v apk)" ]; then
-            apk add aws-cli
+            sudo apk add aws-cli
           fi
 
           echo "Configurando credenciais AWS..."
@@ -104,7 +104,11 @@ jobs:
           fi
 
           echo "Obtendo endereço do registro ECR..."
-          export ECR_REGISTRY_ADDRESS=$(aws ecr describe-repositories | grep repositoryUri | awk '{print $2}' | sed -e 's/\"\(.*\)\"\,/\1/' | grep ${SERVICE_NAME})
+          export ECR_REGISTRY_ADDRESS=$(aws ecr describe-repositories | grep repositoryUri | awk '{print $2}' | sed -e 's/\"\(.*\)\"\,/\1/' | grep "^.*${SERVICE_NAME}$" | head -n 1)
+          if [ -z "${ECR_REGISTRY_ADDRESS}" ]; then
+            echo "ERRO: Registro ECR não encontrado para o serviço ${SERVICE_NAME}"
+            exit 1
+          fi
           echo "Endereço do registro ECR: ${ECR_REGISTRY_ADDRESS}"
 
           echo "Fazendo login no ECR..."
