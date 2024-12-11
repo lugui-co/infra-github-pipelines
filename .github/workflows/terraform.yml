@@ -81,38 +81,12 @@ jobs:
             echo >> ./environments/${CI_COMMIT_BRANCH}.tfvars
 
             echo "Buscando parâmetros específicos da branch..."
-            export params_candidate=$(aws ssm get-parameters --names "/cicd/account/tfvars/${CI_COMMIT_BRANCH}" --with-decryption --query "Parameters[0].Value" --output text)
-
-            if [ "${params_candidate}" != "null" ] && [ "${params_candidate}" != "None" ]; then
-              echo "Usando parâmetros específicos da branch ${CI_COMMIT_BRANCH}"
-              aws ssm get-parameters --names "/cicd/account/tfvars/${CI_COMMIT_BRANCH}" --with-decryption --query "Parameters[0].Value" --output text >> ./environments/${CI_COMMIT_BRANCH}.tfvars
-
-            else
-              echo "Parâmetros específicos não encontrados, buscando parâmetros padrão..."
-              export params_candidate=$(aws ssm get-parameters --names "/cicd/account/tfvars" --with-decryption --query "Parameters[0].Value" --output text)
-
-              if [ "${params_candidate}" != "null" ] && [ "${params_candidate}" != "None" ]; then
-                echo "Usando parâmetros padrão"
-                aws ssm get-parameters --names "/cicd/account/tfvars" --with-decryption --query "Parameters[0].Value" --output text >> ./environments/${CI_COMMIT_BRANCH}.tfvars
-              fi
-            fi
+            aws ssm get-parameters --names "/cicd/account/tfvars" --with-decryption --query "Parameters[0].Value" --output text >> ./environments/${CI_COMMIT_BRANCH}.tfvars
+            echo "Parâmetros encontrados e adicionados ao arquivo de variáveis..."
 
             echo "Verificando configuração de região..."
-            export region_candidate=$(aws ssm get-parameters --names "/cicd/account/region/${CI_COMMIT_BRANCH}" --with-decryption --query "Parameters[0].Value" --output text)
-
-            if [ "${region_candidate}" != "null" ] && [ "${region_candidate}" != "None" ]; then
-              echo "Usando região específica da branch: ${region_candidate}"
-              export AWS_DEFAULT_REGION=${region_candidate}
-
-            else
-              echo "Buscando região padrão..."
-              export region_candidate=$(aws ssm get-parameters --names "/cicd/account/region" --with-decryption --query "Parameters[0].Value" --output text)
-
-              if [ "${region_candidate}" != "null" ] && [ "${region_candidate}" != "None" ]; then
-                echo "Usando região padrão: ${region_candidate}"
-                export AWS_DEFAULT_REGION=${region_candidate}
-              fi
-            fi
+            export AWS_DEFAULT_REGION=$(aws ssm get-parameters --names "/cicd/account/region" --with-decryption --query "Parameters[0].Value" --output text)
+            echo "Região AWS configurada: ${AWS_DEFAULT_REGION}"
 
             echo "Inicializando Terraform..."
             terraform init -force-copy -input=false -backend-config bucket="lugui-terraform-states-${CI_COMMIT_BRANCH}" -backend-config dynamodb_table="lugui-terraform-states-${CI_COMMIT_BRANCH}" -backend-config shared_credentials_file=~/.aws/credentials -backend-config profile=${CI_COMMIT_BRANCH} -backend-config region=${AWS_DEFAULT_REGION}
@@ -220,38 +194,12 @@ jobs:
             echo >> ./environments/${CI_COMMIT_BRANCH}.tfvars
 
             echo "Buscando parâmetros específicos da branch..."
-            export params_candidate=$(aws ssm get-parameters --names "/cicd/account/tfvars/${CI_COMMIT_BRANCH}" --with-decryption --query "Parameters[0].Value" --output text)
-
-            if [ "${params_candidate}" != "null" ] && [ "${params_candidate}" != "None" ]; then
-              echo "Usando parâmetros específicos da branch ${CI_COMMIT_BRANCH}"
-              aws ssm get-parameters --names "/cicd/account/tfvars/${CI_COMMIT_BRANCH}" --with-decryption --query "Parameters[0].Value" --output text >> ./environments/${CI_COMMIT_BRANCH}.tfvars
-
-            else
-              echo "Parâmetros específicos não encontrados, buscando parâmetros padrão..."
-              export params_candidate=$(aws ssm get-parameters --names "/cicd/account/tfvars" --with-decryption --query "Parameters[0].Value" --output text)
-
-              if [ "${params_candidate}" != "null" ] && [ "${params_candidate}" != "None" ]; then
-                echo "Usando parâmetros padrão"
-                aws ssm get-parameters --names "/cicd/account/tfvars" --with-decryption --query "Parameters[0].Value" --output text >> ./environments/${CI_COMMIT_BRANCH}.tfvars
-              fi
-            fi
+            aws ssm get-parameters --names "/cicd/account/tfvars" --with-decryption --query "Parameters[0].Value" --output text >> ./environments/${CI_COMMIT_BRANCH}.tfvars
+            echo "Parâmetros encontrados e adicionados ao arquivo de variáveis..."
 
             echo "Verificando configuração de região..."
-            export region_candidate=$(aws ssm get-parameters --names "/cicd/account/region/${CI_COMMIT_BRANCH}" --with-decryption --query "Parameters[0].Value" --output text)
-
-            if [ "${region_candidate}" != "null" ] && [ "${region_candidate}" != "None" ]; then
-              echo "Usando região específica da branch: ${region_candidate}"
-              export AWS_DEFAULT_REGION=${region_candidate}
-
-            else
-              echo "Buscando região padrão..."
-              export region_candidate=$(aws ssm get-parameters --names "/cicd/account/region" --with-decryption --query "Parameters[0].Value" --output text)
-
-              if [ "${region_candidate}" != "null" ] && [ "${region_candidate}" != "None" ]; then
-                echo "Usando região padrão: ${region_candidate}"
-                export AWS_DEFAULT_REGION=${region_candidate}
-              fi
-            fi
+            export AWS_DEFAULT_REGION=$(aws ssm get-parameters --names "/cicd/account/region" --with-decryption --query "Parameters[0].Value" --output text)
+            echo "Região AWS configurada: ${AWS_DEFAULT_REGION}"
 
             echo "Ajustando permissões do arquivo de plano..."
             sudo chown -R $(whoami):$(whoami) ./tfplan.json
