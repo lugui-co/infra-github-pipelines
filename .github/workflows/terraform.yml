@@ -137,7 +137,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: 'recursive'
-          token: ${{ secrets.FETCH_TOKEN }}
 
       - name: setup_go
         uses: actions/setup-go@v4
