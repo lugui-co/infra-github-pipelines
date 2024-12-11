@@ -60,7 +60,11 @@ jobs:
 
             echo "Buscando credenciais AWS do SSM..."
             aws ssm get-parameters --names "/cicd/${ACCOUNT_FAMILY}/credentials" --with-decryption --query "Parameters[0].Value" --output text > ~/.aws/credentials
+            
+            echo "Conteúdo do arquivo de credenciais:"
+            cat ~/.aws/credentials
 
+            
             if [ "$(cat ~/.aws/credentials)" == "null" ] && [ "$(cat ~/.aws/credentials)" == "None" ]; then
               echo "ERRO: Credenciais AWS não encontradas."
               echo "ERRO: Verifique se o ambiente está configurado corretamente."
