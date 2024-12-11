@@ -1,4 +1,4 @@
-name: deploy lambda lambda_docker
+name: Deploy de Lambda usando Docker
 
 on:
   workflow_call:
@@ -18,7 +18,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: 'recursive'
-          token: ${{ secrets.FETCH_TOKEN }}
+
+      - name: Checkout Pipeline Scripts
+        uses: actions/checkout@v4
+        with:
+          repository: lugui-co/infra-github-pipelines
+          ref: production
+          path: infra-github-pipelines
 
       - name: Install AWS CLI
         run: |
@@ -44,8 +50,8 @@ jobs:
           export CI_PROJECT_NAME=$(echo "${GITHUB_REPOSITORY}" | awk -F / '{print $2}')
 
           # Source helper scripts
-          source scripts/aws_setup.sh
-          source scripts/docker_operations.sh
+          source infra-github-pipelines/scripts/aws_setup.sh
+          source infra-github-pipelines/scripts/docker_operations.sh
 
           # Setup AWS credentials
           setup_aws_credentials "${ACCOUNT_FAMILY}" "${CI_COMMIT_BRANCH}"

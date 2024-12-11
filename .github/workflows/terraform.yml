@@ -1,3 +1,5 @@
+name: Deploy de infraestrutura com Terraform
+
 on:
   workflow_call:
     inputs:
