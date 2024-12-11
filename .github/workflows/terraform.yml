@@ -40,6 +40,9 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.7.0"   
+
+      - name: Setup Scripts
+        uses: lugui-co/infra-github-pipelines/scripts@production
                
       - name: plan
         run: |
@@ -50,9 +53,9 @@ jobs:
           # Instalar dependências
           sudo apt-get update && sudo apt-get install -y awscli p7zip build-essential
 
-          # Carregar scripts
-          source scripts/aws_setup.sh
-          source scripts/terraform_operations.sh
+          # Carregar e executar scripts da action compartilhada
+          source ${GITHUB_ACTION_PATH}/aws_setup.sh
+          source ${GITHUB_ACTION_PATH}/terraform_operations.sh
 
           # Configurar AWS
           setup_aws_credentials "${ACCOUNT_FAMILY}" "${CI_COMMIT_BRANCH}"
@@ -109,6 +112,9 @@ jobs:
         with:
           terraform_version: "1.7.0"   
 
+      - name: Setup Scripts
+        uses: lugui-co/infra-github-pipelines/scripts@production
+
       - name: download_artifacts
         uses: actions/download-artifact@v4
         with:
@@ -123,9 +129,9 @@ jobs:
           # Instalar dependências
           sudo apt-get update && sudo apt-get install -y awscli p7zip build-essential
 
-          # Carregar scripts
-          source scripts/aws_setup.sh
-          source scripts/terraform_operations.sh
+          # Carregar e executar scripts da action compartilhada
+          source ${GITHUB_ACTION_PATH}/aws_setup.sh
+          source ${GITHUB_ACTION_PATH}/terraform_operations.sh
 
           # Configurar AWS
           setup_aws_credentials "${ACCOUNT_FAMILY}" "${CI_COMMIT_BRANCH}"
