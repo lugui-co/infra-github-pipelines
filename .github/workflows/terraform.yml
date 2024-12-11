@@ -16,8 +16,31 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
     steps:
-      - uses: lugui-co/infra-github-pipelines/.github/workflows/terraform-config.yml
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
 
+      - name: setup_go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20.4'
+
+      - name: setup_python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 'pypy3.10'
+
+      - name: setup_node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20.2.0'
+
+      - name: setup_terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"   
+               
       - name: plan
         run: |
           echo "Iniciando job de plan..."
@@ -61,7 +84,30 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
     steps:
-      - uses: lugui-co/infra-github-pipelines/.github/workflows/terraform-config.yml
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      - name: setup_go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20.4'
+
+      - name: setup_python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 'pypy3.10'
+
+      - name: setup_node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20.2.0'
+
+      - name: setup_terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"   
 
       - name: download_artifacts
         uses: actions/download-artifact@v4
