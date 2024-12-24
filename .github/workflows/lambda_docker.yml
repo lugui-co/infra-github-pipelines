@@ -52,9 +52,9 @@ jobs:
           fi
 
           # Source helper scripts
-          source infra-github-pipelines/scripts/aws_setup.sh
-          source infra-github-pipelines/scripts/docker_operations.sh
-          source infra-github-pipelines/scripts/lambda_operations.sh
+          . infra-github-pipelines/scripts/aws_setup.sh
+          . infra-github-pipelines/scripts/docker_operations.sh
+          . infra-github-pipelines/scripts/lambda_operations.sh
 
           # Setup AWS credentials
           setup_aws_credentials "${ACCOUNT_FAMILY}" "${CI_COMMIT_BRANCH}"

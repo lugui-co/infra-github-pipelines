@@ -42,7 +42,7 @@ jobs:
       - name: setup_terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.7.0"   
+          terraform_version: "1.7.0"
 
       - name: Checkout Pipeline Scripts
         uses: actions/checkout@v4
@@ -51,7 +51,7 @@ jobs:
           ref: production
           path: infra-github-pipelines
           token: ${{ secrets.FETCH_TOKEN }}
-               
+
       - name: plan
         run: |
           echo "Iniciando job de plan..."
@@ -62,8 +62,8 @@ jobs:
           sudo apt-get update && sudo apt-get install -y awscli p7zip build-essential
 
           # Carregar e executar scripts
-          source infra-github-pipelines/scripts/aws_setup.sh
-          source infra-github-pipelines/scripts/terraform_operations.sh
+          . infra-github-pipelines/scripts/aws_setup.sh
+          . infra-github-pipelines/scripts/terraform_operations.sh
 
           # Configurar AWS
           setup_aws_credentials "${ACCOUNT_FAMILY}" "${CI_COMMIT_BRANCH}"
@@ -118,7 +118,7 @@ jobs:
       - name: setup_terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.7.0"   
+          terraform_version: "1.7.0"
 
       - name: Checkout Pipeline Scripts
         uses: actions/checkout@v4
@@ -142,8 +142,8 @@ jobs:
           sudo apt-get update && sudo apt-get install -y awscli p7zip build-essential
 
           # Carregar e executar scripts
-          source infra-github-pipelines/scripts/aws_setup.sh
-          source infra-github-pipelines/scripts/terraform_operations.sh
+          . infra-github-pipelines/scripts/aws_setup.sh
+          . infra-github-pipelines/scripts/terraform_operations.sh
 
           # Configurar AWS
           setup_aws_credentials "${ACCOUNT_FAMILY}" "${CI_COMMIT_BRANCH}"
