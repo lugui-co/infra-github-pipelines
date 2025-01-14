@@ -33,10 +33,10 @@ run_terraform_plan() {
 
 run_terraform_apply() {
     local plan_file=$1
-    
+
     # Ajustar permissões do arquivo de plano
     sudo chown -R $(whoami):$(whoami) ${plan_file}
     sudo chmod -R 777 ${plan_file}
 
-    terraform apply -auto-approve -input=false ${plan_file}
-} 
+    TF_LOG=DEBUG terraform apply -auto-approve -input=false ${plan_file}
+}
