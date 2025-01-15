@@ -1,0 +1,84 @@
+name: Deploy React app to S3
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-22.04
+
+    environment:
+      name: ${{ inputs.environment }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          token: ${{ secrets.FETCH_TOKEN }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies and build
+        run: |
+          npm install
+          npm run build
+
+      - name: Set environment variables
+        env:
+          SERVICE_NAME_PREFIX: ${{ vars.SERVICE_NAME_PREFIX }}
+          SERVICE_NAME: ${{ vars.SERVICE_NAME }}
+        run: |
+          CI_PROJECT_NAME=$(echo $GITHUB_REPOSITORY | awk -F / '{print $2}')
+          CI_COMMIT_BRANCH=$GITHUB_REF_NAME
+          if [ -z $SERVICE_NAME_PREFIX ]; then
+            SERVICE_NAME_PREFIX=lugui
+          fi
+          if [ -z $SERVICE_NAME ]; then
+            SERVICE_NAME=$CI_PROJECT_NAME
+          fi
+          AWS_S3_BUCKET=${SERVICE_NAME_PREFIX}-${SERVICE_NAME}-${CI_COMMIT_BRANCH}
+          echo "AWS_S3_BUCKET=$AWS_S3_BUCKET" >> $GITHUB_ENV
+          echo "SERVICE_NAME=$SERVICE_NAME" >> $GITHUB_ENV
+
+      - name: Upload to S3
+        uses: jakejarvis/s3-sync-action@master
+        with:
+          args: --delete
+        env:
+          AWS_S3_BUCKET: ${{ env.AWS_S3_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ vars.AWS_DEFAULT_REGION }}
+          SOURCE_DIR: ./build
+
+      - name: Get CloudFront distribution ID
+        continue-on-error: true
+        env:
+          AWS_REGION: ${{ vars.AWS_DEFAULT_REGION }}
+          AWS_S3_BUCKET: ${{ env.AWS_S3_BUCKET }}
+          SERVICE_NAME: ${{ env.SERVICE_NAME }}
+        run: |
+          terraform init \
+            -backend-config bucket="$AWS_S3_BUCKET" \
+            -backend-config region="$AWS_REGION" \
+            -backend-config key=infra/${SERVICE_NAME}/${GITHUB_REF_NAME}/terraform.tfstate
+          CLOUDFRONT_DISTRIBUTION_ID=$(terraform output -raw cloudfront_distribution_id)
+          echo "CLOUDFRONT_DISTRIBUTION_ID=$CLOUDFRONT_DISTRIBUTION_ID" >> $GITHUB_ENV
+
+      - name: Invalidate CloudFront cache
+        uses: chetan/invalidate-cloudfront-action@v2
+        if: ${{ env.CLOUDFRONT_DISTRIBUTION_ID != '' }}
+        env:
+          DISTRIBUTION: ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}
+          PATHS: "/*"
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ vars.AWS_DEFAULT_REGION }}
