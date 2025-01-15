@@ -71,19 +71,20 @@ jobs:
           # Setup AWS credentials
           setup_aws_credentials "${ACCOUNT_FAMILY}" "${CI_COMMIT_BRANCH}"
 
+          # Export AWS profile data
+          echo "AWS_ACCESS_KEY_ID=$(aws --profile $AWS_PROFILE configure get aws_access_key_id)" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=$(aws --profile $AWS_PROFILE configure get aws_secret_access_key)" >> $GITHUB_ENV
+          echo "AWS_REGION=$AWS_DEFAULT_REGION" >> $GITHUB_ENV
+
       - name: Upload to S3
         uses: jakejarvis/s3-sync-action@master
         with:
           args: --delete
         env:
-          AWS_S3_BUCKET: ${{ env.AWS_S3_BUCKET }}
           SOURCE_DIR: ./build
 
       - name: Get CloudFront distribution ID
         continue-on-error: true
-        env:
-          AWS_S3_BUCKET: ${{ env.AWS_S3_BUCKET }}
-          SERVICE_NAME: ${{ env.SERVICE_NAME }}
         run: |
           terraform init \
             -backend-config bucket="$AWS_S3_BUCKET" \
@@ -98,6 +99,3 @@ jobs:
         env:
           DISTRIBUTION: ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}
           PATHS: "/*"
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ vars.AWS_DEFAULT_REGION }}
