@@ -55,6 +55,7 @@ jobs:
           AWS_S3_BUCKET=${SERVICE_NAME_PREFIX}-${SERVICE_NAME}-${CI_COMMIT_BRANCH}
           echo "AWS_S3_BUCKET=$AWS_S3_BUCKET" >> $GITHUB_ENV
           echo "SERVICE_NAME=$SERVICE_NAME" >> $GITHUB_ENV
+          echo "CI_COMMIT_BRANCH=$CI_COMMIT_BRANCH" >> $GITHUB_ENV
 
       - name: Setup AWS credentials
         env:
@@ -63,8 +64,6 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
-          CI_COMMIT_BRANCH=$GITHUB_REF_NAME
-          
           # Source helper script
           . infra-github-pipelines/scripts/aws_setup.sh
           
@@ -84,18 +83,22 @@ jobs:
           SOURCE_DIR: ./build
 
       - name: Get CloudFront distribution ID
+        id: distribution_id
         continue-on-error: true
         run: |
           terraform init \
-            -backend-config bucket="$AWS_S3_BUCKET" \
+            -backend-config bucket="lugui-terraform-states-${CI_COMMIT_BRANCH}" \
             -backend-config region="$AWS_REGION" \
-            -backend-config key=infra/${SERVICE_NAME}/${GITHUB_REF_NAME}/terraform.tfstate
+            -backend-config key=infra/${SERVICE_NAME}/${CI_COMMIT_BRANCH}/terraform.tfstate
           CLOUDFRONT_DISTRIBUTION_ID=$(terraform output -raw cloudfront_distribution_id)
+          if [ $(echo $CLOUDFRONT_DISTRIBUTION_ID | cut -c1-1) != 'E' ]; then
+            exit 1
+          fi
           echo "CLOUDFRONT_DISTRIBUTION_ID=$CLOUDFRONT_DISTRIBUTION_ID" >> $GITHUB_ENV
 
       - name: Invalidate CloudFront cache
         uses: chetan/invalidate-cloudfront-action@v2
-        if: ${{ env.CLOUDFRONT_DISTRIBUTION_ID != '' }}
+        if: steps.distribution_id.outcome == 'success'
         env:
           DISTRIBUTION: ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}
           PATHS: "/*"
