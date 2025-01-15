@@ -61,6 +61,11 @@ jobs:
           ACCOUNT_FAMILY: ${{ vars.ACCOUNT_FAMILY }}
         run: |
           CI_COMMIT_BRANCH=$GITHUB_REF_NAME
+          
+          # Source helper script
+          . infra-github-pipelines/scripts/aws_setup.sh
+          
+          # Setup AWS credentials
           setup_aws_credentials "${ACCOUNT_FAMILY}" "${CI_COMMIT_BRANCH}"
 
       - name: Upload to S3
