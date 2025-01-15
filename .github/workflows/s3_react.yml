@@ -58,7 +58,7 @@ jobs:
 
       - name: Setup AWS credentials
         env:
-          ACCOUNT_FAMILY: ${{ var.ACCOUNT_FAMILY }}
+          ACCOUNT_FAMILY: ${{ vars.ACCOUNT_FAMILY }}
         run: |
           CI_COMMIT_BRANCH=$GITHUB_REF_NAME
           setup_aws_credentials "${ACCOUNT_FAMILY}" "${CI_COMMIT_BRANCH}"
