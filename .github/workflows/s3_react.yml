@@ -21,6 +21,14 @@ jobs:
           submodules: 'recursive'
           token: ${{ secrets.FETCH_TOKEN }}
 
+      - name: Checkout Pipeline Scripts
+        uses: actions/checkout@v4
+        with:
+          repository: lugui-co/infra-github-pipelines
+          ref: production
+          path: infra-github-pipelines
+          token: ${{ secrets.FETCH_TOKEN }}
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -48,21 +56,24 @@ jobs:
           echo "AWS_S3_BUCKET=$AWS_S3_BUCKET" >> $GITHUB_ENV
           echo "SERVICE_NAME=$SERVICE_NAME" >> $GITHUB_ENV
 
+      - name: Setup AWS credentials
+        env:
+          ACCOUNT_FAMILY: ${{ var.ACCOUNT_FAMILY }}
+        run: |
+          CI_COMMIT_BRANCH=$GITHUB_REF_NAME
+          setup_aws_credentials "${ACCOUNT_FAMILY}" "${CI_COMMIT_BRANCH}"
+
       - name: Upload to S3
         uses: jakejarvis/s3-sync-action@master
         with:
           args: --delete
         env:
           AWS_S3_BUCKET: ${{ env.AWS_S3_BUCKET }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ vars.AWS_DEFAULT_REGION }}
           SOURCE_DIR: ./build
 
       - name: Get CloudFront distribution ID
         continue-on-error: true
         env:
-          AWS_REGION: ${{ vars.AWS_DEFAULT_REGION }}
           AWS_S3_BUCKET: ${{ env.AWS_S3_BUCKET }}
           SERVICE_NAME: ${{ env.SERVICE_NAME }}
         run: |
